@@ -2,6 +2,7 @@
   "private": true,
   "version": "2.1.3",
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "nitro build",
     "dev": "nitro dev",
     "prepare": "nitro prepare",
