@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 ARG DATABASE_URL
 ARG DATABASE_URL_DOCKER
