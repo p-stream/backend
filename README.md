@@ -100,7 +100,7 @@ npm install && npm run dev
 
 3. Set your Environment variables: check above as there is a guide for it!
 
-4. Make your changes! Go crazy, so long as you think it is helpful we'd love to see a Pull Request, have fun, this project is FOSS and done in my our maintainers free time, no pressure, just enjoy yourself
+4. Make your changes! Go crazy, so long as you think it is helpful we'd love to see a Pull Request, have fun, this project is FOSS and done in my our maintainers free time, no pressure, just enjoy yourself (you can call yourself a unpaid intern)
 
 ### Philosophy/Habits for devs
 Here is a general rule of thumb for what your changes and developments should look like if you plan on getting it merged to the main branch:
