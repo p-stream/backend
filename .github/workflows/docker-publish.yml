@@ -5,6 +5,10 @@ on:
   push:
     branches: [ "master" ] # Change to your default branch
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -26,7 +30,8 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/backend:latest .
+          docker build -t ghcr.io/${{ github.repository_owner }}/backend:latest -t ghcr.io/${{ github.repository_owner }}/backend:${{ github.sha }} .
       - name: Push Docker image
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/backend:latest
+          docker push ghcr.io/${{ github.repository_owner }}/backend:${{ github.sha }}
