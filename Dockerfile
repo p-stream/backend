@@ -10,9 +10,10 @@ RUN npm install
 
 # 2. Copy All folders for future proofing incase of custom setups later on
 COPY . .
-# Define build arguments
-ARG BUILD_DATABASE_URL=postgresql://localhost:5432/placeholder_db
-ARG DATABASE_URL_DOCKER
+
+# 3. Define build arguments (ARGs). 
+# These will be available for `prisma generate` and `npm run build`, 
+ARG DATABASE_URL=postgresql://CHANGETHISDONOTFOLLOWTHIS:5432/placeholder_db
 ARG META_NAME
 ARG META_DESCRIPTION
 ARG CRYPTO_SECRET
@@ -21,28 +22,18 @@ ARG CAPTCHA=false
 ARG CAPTCHA_CLIENT_KEY
 ARG TRAKT_CLIENT_ID
 ARG TRAKT_SECRET_ID
-ARG NODE_ENV=production
 
-# Persist only non-sensitive runtime env vars (do NOT persist real DATABASE_URL)
-ENV DATABASE_URL_DOCKER=${DATABASE_URL_DOCKER}
-ENV META_NAME=${META_NAME}
-ENV META_DESCRIPTION=${META_DESCRIPTION}
-ENV CRYPTO_SECRET=${CRYPTO_SECRET}
-ENV TMDB_API_KEY=${TMDB_API_KEY}
-ENV CAPTCHA=${CAPTCHA}
-ENV CAPTCHA_CLIENT_KEY=${CAPTCHA_CLIENT_KEY}
-ENV TRAKT_CLIENT_ID=${TRAKT_CLIENT_ID}
-ENV TRAKT_SECRET_ID=${TRAKT_SECRET_ID}
-ENV NODE_ENV=${NODE_ENV}
+# 4. Generate Prisma client using the build-only placeholder URL
+RUN DATABASE_URL=${DATABASE_URL} npx prisma generate
 
-# 3. Generate Prisma client using the build-only placeholder URL
-RUN DATABASE_URL=${BUILD_DATABASE_URL} npx prisma generate
-
-
-# Build the application
+# 5. Build the application (it will use the ARGs above during compilation)
 RUN npm run build
+
+# 6. Set ONLY the essential, safe runtime variable.
+ENV NODE_ENV=production
 
 EXPOSE 3000
 
 # Run migrations and start the server
+# Users MUST provide the real variables via Docker Run / Compose
 CMD ["sh", "-c", "npx prisma migrate deploy && node .output/server/index.mjs"]
