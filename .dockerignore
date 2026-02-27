@@ -1,0 +1,66 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+.github/
+
+# Dependencies installed on host
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output / caches
+.output/
+dist/
+build/
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+tmp/
+temp/
+
+# Tests / local-only files
+test/
+tests/
+__tests__/
+__mocks__/
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# Local DB / runtime artifacts
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs / pid files
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
