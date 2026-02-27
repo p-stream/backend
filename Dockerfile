@@ -48,5 +48,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-# Run migrations and start the server (kept exactly as you requested)
+# Run migrations and start the server
 CMD ["sh", "-c", "npx prisma migrate deploy && node .output/server/index.mjs"]
