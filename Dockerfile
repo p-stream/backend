@@ -8,12 +8,10 @@ RUN apk add --no-cache curl openssl
 COPY package*.json ./
 RUN npm install
 
-# 2. Copy ONLY the prisma folder next to cache the Prisma Client generation
-COPY prisma ./prisma/
-
+# 2. Copy All folders for future proofing incase of custom setups later on
+COPY . .
 # Define build arguments
-ARG BUILD_DATABASE_URL="file:./dev.db"
-ARG DATABASE_URL
+ARG BUILD_DATABASE_URL=postgresql://localhost:5432/placeholder_db
 ARG DATABASE_URL_DOCKER
 ARG META_NAME
 ARG META_DESCRIPTION
@@ -40,8 +38,6 @@ ENV NODE_ENV=${NODE_ENV}
 # 3. Generate Prisma client using the build-only placeholder URL
 RUN DATABASE_URL=${BUILD_DATABASE_URL} npx prisma generate
 
-# 4. Copy the rest of the application code AFTER dependencies and Prisma are sorted
-COPY . .
 
 # Build the application
 RUN npm run build
