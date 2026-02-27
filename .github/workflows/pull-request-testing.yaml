@@ -95,9 +95,8 @@ jobs:
       - name: Run account creation integration test
         run: |
           # Making sure this is installed cause it keeeps failing cause of this
-          npm install tweetnacl
           # Create a Node.js script to handle the crypto operations
-          cat > /tmp/auth-test.mjs << 'EOF'
+          cat > auth-test.mjs << 'EOF'
           import crypto from 'crypto';
           import nacl from 'tweetnacl';
 
@@ -270,7 +269,9 @@ jobs:
           });
           EOF
 
-          node /tmp/auth-test.mjs
+          node auth-test.mjs
+          rm auth-test.mjs
+
 
       - name: Run API endpoint tests
         run: |
