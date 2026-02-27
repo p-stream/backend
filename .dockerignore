@@ -64,3 +64,21 @@ pids/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Docker / deployment config
+Dockerfile
+.dockerignore
+docker-compose.yml
+nixpacks.toml
+railpack.json
+
+# Documentation
+README.md
+LICENSE
+
+# Dev-only source folders
+examples/
+
+# Dev tooling config
+.eslintrc.json
+.prettierrc
