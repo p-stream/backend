@@ -40,12 +40,23 @@ export default defineEventHandler(async event => {
     const validatedBody = updateSessionSchema.parse(body);
 
     // Use update return value directly — no redundant findUnique
-    const updatedSession = validatedBody.deviceName
-      ? await prisma.sessions.update({
-          where: { id: sessionId },
-          data: { device: validatedBody.deviceName },
-        })
-      : targetedSession;
+    let updatedSession;
+    try {
+      updatedSession = validatedBody.deviceName
+        ? await prisma.sessions.update({
+            where: { id: sessionId },
+            data: { device: validatedBody.deviceName },
+          })
+        : targetedSession;
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        throw createError({
+          statusCode: 409,
+          message: 'A session with this device name already exists',
+        });
+      }
+      throw err;
+    }
 
     return {
       id: updatedSession.id,

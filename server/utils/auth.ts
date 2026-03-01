@@ -43,7 +43,7 @@ export function useAuth() {
     // Atomic upsert — backed by @@unique([user, device]) in schema
     return await prisma.sessions.upsert({
       where: {
-        sessions_user_device_unique: { user, device },
+        user_device: { user, device },
       },
       update: {
         id: uuidv7(),
