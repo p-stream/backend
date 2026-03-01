@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { useChallenge } from '~/utils/challenge';
 import { useAuth } from '~/utils/auth';
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 import { generateRandomNickname } from '~/utils/nickname';
 
 const completeSchema = z.object({
@@ -50,7 +50,7 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const userId = randomUUID();
+  const userId = uuidv7();
   const now = new Date();
   const nickname = generateRandomNickname();
 

@@ -28,7 +28,7 @@ export interface PlayerStatus {
 
 // In-memory store for player status data
 // Key: userId+roomCode, Value: Status data array
-export const playerStatusStore = new Map<string, Array<PlayerStatus>>();
+export const playerStatusStore = new Map<string, PlayerStatus[]>();
 
 // Cleanup interval (30 minutes in milliseconds)
 export const CLEANUP_INTERVAL = 30 * 60 * 1000;

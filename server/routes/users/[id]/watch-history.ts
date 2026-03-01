@@ -1,6 +1,6 @@
 import { useAuth } from '~/utils/auth';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 
 const watchHistoryMetaSchema = z.object({
   title: z.string(),
@@ -54,6 +54,18 @@ export default defineEventHandler(async event => {
     const items = await prisma.watch_history.findMany({
       where: { user_id: userId },
       orderBy: { watched_at: 'desc' },
+      select: {
+        tmdb_id: true,
+        episode_id: true,
+        episode_number: true,
+        season_id: true,
+        season_number: true,
+        meta: true,
+        duration: true,
+        watched: true,
+        watched_at: true,
+        completed: true,
+      }
     });
 
     return items.map(item => ({

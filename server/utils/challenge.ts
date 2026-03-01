@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 import { prisma } from './prisma';
 import nacl from 'tweetnacl';
 
@@ -12,7 +12,7 @@ export function useChallenge() {
 
     return await prisma.challenge_codes.create({
       data: {
-        code: randomUUID(),
+        code: uuidv7(),
         flow,
         auth_type: authType,
         created_at: now,

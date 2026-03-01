@@ -18,6 +18,7 @@ export default defineEventHandler(async event => {
 
   const user = await prisma.users.findUnique({
     where: { public_key: body.publicKey },
+    select: { id: true },
   });
 
   if (!user) {

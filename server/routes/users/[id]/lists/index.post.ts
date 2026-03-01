@@ -1,6 +1,7 @@
 import { useAuth } from '#imports';
 import { prisma } from '~/utils/prisma';
 import { z } from 'zod';
+import { uuidv7 } from 'uuidv7';
 
 const listItemSchema = z.object({
   tmdb_id: z.string(),
@@ -40,18 +41,30 @@ export default defineEventHandler(async event => {
   const validatedBody = createListSchema.parse(parsedBody);
 
   const result = await prisma.$transaction(async tx => {
+    const existing = await tx.lists.findFirst({
+      where: { user_id: userId, name: validatedBody.name }
+    });
+
+    if (existing) {
+      throw createError({ statusCode: 409, message: 'A list with this name already exists' });
+    }
+
+    const now = new Date();
     const newList = await tx.lists.create({
       data: {
+        id: uuidv7(),
         user_id: userId,
         name: validatedBody.name,
         description: validatedBody.description || null,
         public: validatedBody.public || false,
+        updated_at: now,
       },
     });
 
     if (validatedBody.items && validatedBody.items.length > 0) {
       await tx.list_items.createMany({
         data: validatedBody.items.map(item => ({
+          id: uuidv7(),
           list_id: newList.id,
           tmdb_id: item.tmdb_id,
           type: item.type, // Type is mapped here

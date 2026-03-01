@@ -1,6 +1,7 @@
 import { useAuth } from '#imports';
 import { z } from 'zod';
 import { prisma } from '#imports';
+import { uuidv7 } from 'uuidv7';
 
 const listItemSchema = z.object({
   tmdb_id: z.string(),
@@ -62,6 +63,7 @@ export default defineEventHandler(async event => {
           description:
             validatedBody.description !== undefined ? validatedBody.description : list.description,
           public: validatedBody.public ?? list.public,
+          updated_at: new Date(),
         },
       });
     }
@@ -76,6 +78,7 @@ export default defineEventHandler(async event => {
       if (itemsToAdd.length > 0) {
         await tx.list_items.createMany({
           data: itemsToAdd.map(item => ({
+            id: uuidv7(),
             list_id: list.id,
             tmdb_id: item.tmdb_id,
             type: item.type,

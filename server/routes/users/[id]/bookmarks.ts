@@ -1,6 +1,5 @@
 import { useAuth } from '~/utils/auth';
 import { z } from 'zod';
-import { bookmarks } from '@prisma/client';
 
 const bookmarkMetaSchema = z.object({
   title: z.string(),
@@ -32,9 +31,16 @@ export default defineEventHandler(async event => {
   if (method === 'GET') {
     const bookmarks = await prisma.bookmarks.findMany({
       where: { user_id: userId },
+      select: {
+        tmdb_id: true,
+        meta: true,
+        group: true,
+        favorite_episodes: true,
+        updated_at: true,
+      },
     });
 
-    return bookmarks.map((bookmark: bookmarks) => ({
+    return bookmarks.map((bookmark: any) => ({
       tmdbId: bookmark.tmdb_id,
       meta: bookmark.meta,
       group: bookmark.group,
@@ -48,18 +54,16 @@ export default defineEventHandler(async event => {
     const validatedBody = z.array(bookmarkDataSchema).parse(body);
 
     const now = new Date();
-    const results = [];
-
-    for (const item of validatedBody) {
+    const upserts = validatedBody.map((item: any) => {
       // Normalize group to always be an array
-      const normalizedGroup = item.group 
+      const normalizedGroup = item.group
         ? (Array.isArray(item.group) ? item.group : [item.group])
         : [];
 
       // Normalize favoriteEpisodes to always be an array
       const normalizedFavoriteEpisodes = item.favoriteEpisodes || [];
 
-      const bookmark = await prisma.bookmarks.upsert({
+      return prisma.bookmarks.upsert({
         where: {
           tmdb_id_user_id: {
             tmdb_id: item.tmdbId,
@@ -80,18 +84,18 @@ export default defineEventHandler(async event => {
           favorite_episodes: normalizedFavoriteEpisodes,
           updated_at: now,
         } as any,
-      }) as bookmarks;
-
-      results.push({
-        tmdbId: bookmark.tmdb_id,
-        meta: bookmark.meta,
-        group: bookmark.group,
-        favoriteEpisodes: bookmark.favorite_episodes,
-        updatedAt: bookmark.updated_at,
       });
-    }
+    });
 
-    return results;
+    const bookmarks = await prisma.$transaction(upserts);
+
+    return bookmarks.map((bookmark: any) => ({
+      tmdbId: bookmark.tmdb_id,
+      meta: bookmark.meta,
+      group: bookmark.group,
+      favoriteEpisodes: bookmark.favorite_episodes,
+      updatedAt: bookmark.updated_at,
+    }));
   }
 
 
