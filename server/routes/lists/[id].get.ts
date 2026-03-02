@@ -12,6 +12,13 @@ export default defineEventHandler(async event => {
     },
   });
 
+  if (!listInfo) {
+    throw createError({
+      statusCode: 404,
+      message: 'List not found',
+    });
+  }
+
   if (!listInfo.public) {
     return createError({
       statusCode: 403,
