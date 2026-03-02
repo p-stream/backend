@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 import { useAuth } from '~/utils/auth';
 import { z } from 'zod';
 
@@ -38,7 +38,7 @@ export default defineEventHandler(async event => {
         updated_at: new Date(),
       },
       create: {
-        id: randomUUID(),
+        id: uuidv7(),
         user_id: userId,
         group_order: validatedGroupOrder,
       },

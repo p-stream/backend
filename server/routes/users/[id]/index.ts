@@ -94,11 +94,35 @@ export default defineEventHandler(async event => {
           where: { user_id: userId },
         });
 
+        await tx.watch_history.deleteMany({
+          where: { user_id: userId },
+        });
+
+        const userLists = await tx.lists.findMany({
+          where: { user_id: userId },
+          select: { id: true }
+        });
+        const listIds = userLists.map((l: any) => l.id);
+
+        if (listIds.length > 0) {
+          await tx.list_items.deleteMany({
+            where: { list_id: { in: listIds } },
+          });
+        }
+
+        await tx.lists.deleteMany({
+          where: { user_id: userId },
+        });
+
+        await tx.user_group_order.deleteMany({
+          where: { user_id: userId },
+        });
+
         await tx.user_settings
           .delete({
             where: { id: userId },
           })
-          .catch(() => {});
+          .catch(() => { });
 
         await tx.sessions.deleteMany({
           where: { user: userId },

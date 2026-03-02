@@ -1,6 +1,7 @@
 import { useAuth } from '#imports';
 import { z } from 'zod';
 import { prisma } from '#imports';
+import { uuidv7 } from 'uuidv7';
 
 const listItemSchema = z.object({
   tmdb_id: z.string(),
@@ -31,6 +32,7 @@ export default defineEventHandler(async event => {
   const validatedBody = updateListSchema.parse(body);
 
   const list = await prisma.lists.findUnique({
+    relationLoadStrategy: 'join',
     where: { id: validatedBody.list_id },
     include: { list_items: true },
   });
@@ -49,7 +51,9 @@ export default defineEventHandler(async event => {
     });
   }
 
-  const result = await prisma.$transaction(async tx => {
+  let result;
+  try {
+    result = await prisma.$transaction(async tx => {
     if (
       validatedBody.name ||
       validatedBody.description !== undefined ||
@@ -62,6 +66,7 @@ export default defineEventHandler(async event => {
           description:
             validatedBody.description !== undefined ? validatedBody.description : list.description,
           public: validatedBody.public ?? list.public,
+          updated_at: new Date(),
         },
       });
     }
@@ -76,6 +81,7 @@ export default defineEventHandler(async event => {
       if (itemsToAdd.length > 0) {
         await tx.list_items.createMany({
           data: itemsToAdd.map(item => ({
+            id: uuidv7(),
             list_id: list.id,
             tmdb_id: item.tmdb_id,
             type: item.type,
@@ -97,10 +103,17 @@ export default defineEventHandler(async event => {
     }
 
     return tx.lists.findUnique({
+      relationLoadStrategy: 'join',
       where: { id: list.id },
       include: { list_items: true },
     });
   });
+  } catch (err: any) {
+    if (err.code === 'P2002') {
+      throw createError({ statusCode: 409, message: 'A list with this name already exists' });
+    }
+    throw err;
+  }
 
   return {
     list: result,

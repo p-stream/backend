@@ -1,6 +1,6 @@
 import { useAuth } from '~/utils/auth';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 import { scopedLogger } from '~/utils/logger';
 
 const log = scopedLogger('progress-import');
@@ -14,7 +14,7 @@ const progressMetaSchema = z.object({
 
 const progressItemSchema = z.object({
   meta: progressMetaSchema,
-  tmdbId: z.string().transform(val => val || randomUUID()),
+  tmdbId: z.string().transform(val => val || uuidv7()),
   duration: z
     .number()
     .min(0)
@@ -54,6 +54,7 @@ export default defineEventHandler(async event => {
   // First check if user exists
   const user = await prisma.users.findUnique({
     where: { id: userId },
+    select: { id: true }
   });
 
   if (!user) {
@@ -72,7 +73,7 @@ export default defineEventHandler(async event => {
 
   try {
     const body = await readBody(event);
-    const validatedBody = z.array(progressItemSchema).parse(body);
+    const validatedBody = z.array(progressItemSchema).max(1000).parse(body);
 
     const existingItems = await prisma.progress_items.findMany({
       where: { user_id: userId },
@@ -117,7 +118,7 @@ export default defineEventHandler(async event => {
     for (const item of newItems) {
       const isMovie = item.meta.type === 'movie';
       itemsToUpsert.push({
-        id: randomUUID(),
+        id: uuidv7(),
         tmdb_id: item.tmdbId,
         user_id: userId,
         season_id: isMovie ? '\n' : item.seasonId || null,
@@ -132,54 +133,56 @@ export default defineEventHandler(async event => {
     }
 
     // Upsert all items
-    const results = [];
-    for (const item of itemsToUpsert) {
-      try {
-        const result = await prisma.progress_items.upsert({
-          where: {
-            tmdb_id_user_id_season_id_episode_id: {
-              tmdb_id: item.tmdb_id,
-              user_id: item.user_id,
-              season_id: item.season_id,
-              episode_id: item.episode_id,
-            },
+    const upsertPromises = itemsToUpsert.map(item =>
+      prisma.progress_items.upsert({
+        where: {
+          tmdb_id_user_id_season_id_episode_id: {
+            tmdb_id: item.tmdb_id,
+            user_id: item.user_id,
+            season_id: item.season_id,
+            episode_id: item.episode_id,
           },
-          create: item,
-          update: {
-            duration: item.duration,
-            watched: item.watched,
-            meta: item.meta,
-            updated_at: item.updated_at,
-          },
-        });
+        },
+        create: item,
+        update: {
+          duration: item.duration,
+          watched: item.watched,
+          meta: item.meta,
+          updated_at: item.updated_at,
+        },
+      })
+    );
 
-        results.push({
-          id: result.id,
-          tmdbId: result.tmdb_id,
-          episode: {
-            id: result.episode_id === '\n' ? null : result.episode_id,
-            number: result.episode_number,
-          },
-          season: {
-            id: result.season_id === '\n' ? null : result.season_id,
-            number: result.season_number,
-          },
-          meta: result.meta,
-          duration: result.duration.toString(),
-          watched: result.watched.toString(),
-          updatedAt: result.updated_at.toISOString(),
-        });
-      } catch (error) {
-        log.error('Failed to upsert progress item', {
-          userId,
-          tmdbId: item.tmdb_id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
-      }
+    if (upsertPromises.length === 0) return [];
+
+    try {
+      const transactionResults = await prisma.$transaction(upsertPromises);
+
+      const results = transactionResults.map(result => ({
+        id: result.id,
+        tmdbId: result.tmdb_id,
+        episode: {
+          id: result.episode_id === '\n' ? null : result.episode_id,
+          number: result.episode_number,
+        },
+        season: {
+          id: result.season_id === '\n' ? null : result.season_id,
+          number: result.season_number,
+        },
+        meta: result.meta,
+        duration: result.duration.toString(),
+        watched: result.watched.toString(),
+        updatedAt: result.updated_at.toISOString(),
+      }));
+
+      return results;
+    } catch (error) {
+      log.error('Failed to batch upsert progress items', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
-
-    return results;
   } catch (error) {
     log.error('Failed to import progress', {
       userId,

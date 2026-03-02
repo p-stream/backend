@@ -5,6 +5,14 @@ export default defineEventHandler(async event => {
 
   const user = await prisma.users.findUnique({
     where: { id: session.user },
+    select: {
+      id: true,
+      public_key: true,
+      namespace: true,
+      nickname: true,
+      profile: true,
+      permissions: true,
+    },
   });
 
   if (!user) {

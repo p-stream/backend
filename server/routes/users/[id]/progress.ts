@@ -1,6 +1,6 @@
 import { useAuth } from '~/utils/auth';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 
 function progressIsNotStarted(duration: number, watched: number): boolean {
   // too short watch time
@@ -56,7 +56,7 @@ async function shouldSaveProgress(
     const epDuration = Number(episode.duration);
     const epWatched = Number(episode.watched);
     return !progressIsNotStarted(epDuration, epWatched) &&
-           !progressIsCompleted(epDuration, epWatched);
+      !progressIsCompleted(epDuration, epWatched);
   });
 }
 
@@ -110,17 +110,29 @@ export default defineEventHandler(async event => {
   if (method === 'GET') {
     const items = await prisma.progress_items.findMany({
       where: { user_id: userId },
+      select: {
+        id: true,
+        tmdb_id: true,
+        episode_id: true,
+        episode_number: true,
+        season_id: true,
+        season_number: true,
+        meta: true,
+        duration: true,
+        watched: true,
+        updated_at: true,
+      },
     });
 
     return items.map(item => ({
       id: item.id,
       tmdbId: item.tmdb_id,
       episode: {
-        id: item.episode_id || null,
+        id: item.episode_id === '\n' ? null : item.episode_id || null,
         number: item.episode_number || null,
       },
       season: {
-        id: item.season_id || null,
+        id: item.season_id === '\n' ? null : item.season_id || null,
         number: item.season_number || null,
       },
       meta: item.meta,
@@ -148,8 +160,8 @@ export default defineEventHandler(async event => {
     }
 
     for (const [tmdbId, items] of Object.entries(itemsByTmdbId)) {
-      const movieItems = items.filter(item => !item.episode_id);
-      const episodeItems = items.filter(item => item.episode_id);
+      const movieItems = items.filter(item => !item.episode_id || item.episode_id === '\n');
+      const episodeItems = items.filter(item => item.episode_id && item.episode_id !== '\n');
 
       // Process movies
       for (const item of movieItems) {
@@ -179,7 +191,7 @@ export default defineEventHandler(async event => {
           const duration = Number(item.duration);
           const watched = Number(item.watched);
           return !progressIsNotStarted(duration, watched) &&
-                 !progressIsCompleted(duration, watched);
+            !progressIsCompleted(duration, watched);
         });
 
         if (hasAcceptableEpisodes) {
@@ -245,55 +257,42 @@ export default defineEventHandler(async event => {
 
       const now = defaultAndCoerceDateTime(validatedBody.updatedAt);
 
-      const existingItem = await prisma.progress_items.findUnique({
+      const progressItem = await prisma.progress_items.upsert({
         where: {
           tmdb_id_user_id_season_id_episode_id: {
             tmdb_id: tmdbId,
             user_id: userId,
-            season_id: validatedBody.seasonId || null,
-            episode_id: validatedBody.episodeId || null,
+            season_id: validatedBody.meta.type === 'movie' ? '\n' : validatedBody.seasonId || null,
+            episode_id: validatedBody.meta.type === 'movie' ? '\n' : validatedBody.episodeId || null,
           },
         },
+        update: {
+          duration: BigInt(validatedBody.duration),
+          watched: BigInt(validatedBody.watched),
+          meta: validatedBody.meta,
+          updated_at: now,
+        },
+        create: {
+          id: uuidv7(),
+          tmdb_id: tmdbId,
+          user_id: userId,
+          season_id: validatedBody.meta.type === 'movie' ? '\n' : validatedBody.seasonId || null,
+          episode_id: validatedBody.meta.type === 'movie' ? '\n' : validatedBody.episodeId || null,
+          season_number: validatedBody.seasonNumber || null,
+          episode_number: validatedBody.episodeNumber || null,
+          duration: BigInt(validatedBody.duration),
+          watched: BigInt(validatedBody.watched),
+          meta: validatedBody.meta,
+          updated_at: now,
+        },
       });
-
-      let progressItem;
-
-      if (existingItem) {
-        progressItem = await prisma.progress_items.update({
-          where: {
-            id: existingItem.id,
-          },
-          data: {
-            duration: BigInt(validatedBody.duration),
-            watched: BigInt(validatedBody.watched),
-            meta: validatedBody.meta,
-            updated_at: now,
-          },
-        });
-      } else {
-        progressItem = await prisma.progress_items.create({
-          data: {
-            id: randomUUID(),
-            tmdb_id: tmdbId,
-            user_id: userId,
-            season_id: validatedBody.seasonId || null,
-            episode_id: validatedBody.episodeId || null,
-            season_number: validatedBody.seasonNumber || null,
-            episode_number: validatedBody.episodeNumber || null,
-            duration: BigInt(validatedBody.duration),
-            watched: BigInt(validatedBody.watched),
-            meta: validatedBody.meta,
-            updated_at: now,
-          },
-        });
-      }
 
       return {
         id: progressItem.id,
         tmdbId: progressItem.tmdb_id,
         userId: progressItem.user_id,
-        seasonId: progressItem.season_id,
-        episodeId: progressItem.episode_id,
+        seasonId: progressItem.season_id === '\n' ? null : progressItem.season_id,
+        episodeId: progressItem.episode_id === '\n' ? null : progressItem.episode_id,
         seasonNumber: progressItem.season_number,
         episodeNumber: progressItem.episode_number,
         meta: progressItem.meta,
@@ -314,25 +313,12 @@ export default defineEventHandler(async event => {
       if (body.seasonId) whereClause.season_id = body.seasonId;
       if (body.episodeId) whereClause.episode_id = body.episodeId;
 
-      const itemsToDelete = await prisma.progress_items.findMany({
-        where: whereClause,
-      });
-
-      if (itemsToDelete.length === 0) {
-        return {
-          count: 0,
-          tmdbId,
-          episodeId: body.episodeId,
-          seasonId: body.seasonId,
-        };
-      }
-
-      await prisma.progress_items.deleteMany({
+      const { count } = await prisma.progress_items.deleteMany({
         where: whereClause,
       });
 
       return {
-        count: itemsToDelete.length,
+        count,
         tmdbId,
         episodeId: body.episodeId,
         seasonId: body.seasonId,

@@ -1,7 +1,8 @@
 generator client {
-  provider     = "prisma-client"
-  output       = "../generated"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../generated"
+  moduleFormat    = "esm"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -18,6 +19,7 @@ model bookmarks {
 
   @@id([tmdb_id, user_id])
   @@unique([tmdb_id, user_id], map: "bookmarks_tmdb_id_user_id_unique")
+  @@index([user_id], type: Hash)
 }
 
 model challenge_codes {
@@ -49,6 +51,7 @@ model lists {
   public      Boolean      @default(false)
   list_items  list_items[]
 
+  @@unique([user_id, name], map: "lists_user_id_name_unique")
   @@index([user_id], map: "lists_user_id_index")
 }
 
@@ -72,6 +75,7 @@ model progress_items {
   episode_number Int?
 
   @@unique([tmdb_id, user_id, season_id, episode_id], map: "progress_items_tmdb_id_user_id_season_id_episode_id_unique")
+  @@index([user_id], type: Hash)
 }
 
 model sessions {
@@ -82,6 +86,9 @@ model sessions {
   expires_at  DateTime @db.Timestamptz(0)
   device      String
   user_agent  String
+
+  @@unique([user, device], map: "sessions_user_device_unique")
+  @@index([user], type: Hash)
 }
 
 model user_group_order {
@@ -158,4 +165,5 @@ model watch_history {
   updated_at     DateTime @default(now()) @db.Timestamptz(0)
 
   @@unique([tmdb_id, user_id, season_id, episode_id], map: "watch_history_tmdb_id_user_id_season_id_episode_id_unique")
+  @@index([user_id, watched_at(sort: Desc)])
 }

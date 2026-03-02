@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import jwt from 'jsonwebtoken';
 const { sign, verify } = jwt;
-import { randomUUID } from 'crypto';
+import { uuidv7 } from 'uuidv7';
 
 // 21 days in ms
 const SESSION_EXPIRY_MS = 21 * 24 * 60 * 60 * 1000;
@@ -40,9 +40,20 @@ export function useAuth() {
     const now = new Date();
     const expiryDate = new Date(now.getTime() + SESSION_EXPIRY_MS);
 
-    return await prisma.sessions.create({
-      data: {
-        id: randomUUID(),
+    // Atomic upsert — backed by @@unique([user, device]) in schema
+    return await prisma.sessions.upsert({
+      where: {
+        user_device: { user, device },
+      },
+      update: {
+        id: uuidv7(),
+        user_agent: userAgent,
+        created_at: now,
+        accessed_at: now,
+        expires_at: expiryDate,
+      },
+      create: {
+        id: uuidv7(),
         user,
         device,
         user_agent: userAgent,
@@ -56,7 +67,7 @@ export function useAuth() {
   const makeSessionToken = (session: { id: string }) => {
     const runtimeConfig = useRuntimeConfig();
     const cryptoSecret = runtimeConfig.cryptoSecret || process.env.CRYPTO_SECRET;
-    
+
     if (!cryptoSecret) {
       console.error('CRYPTO_SECRET is missing from both runtime config and environment');
       console.error('Available runtime config keys:', Object.keys(runtimeConfig));
@@ -66,7 +77,7 @@ export function useAuth() {
       });
       throw new Error('CRYPTO_SECRET environment variable is not set');
     }
-    
+
     return sign({ sid: session.id }, cryptoSecret, {
       algorithm: 'HS256',
     });
@@ -76,12 +87,12 @@ export function useAuth() {
     try {
       const runtimeConfig = useRuntimeConfig();
       const cryptoSecret = runtimeConfig.cryptoSecret || process.env.CRYPTO_SECRET;
-      
+
       if (!cryptoSecret) {
         console.error('CRYPTO_SECRET is missing for token verification');
         return null;
       }
-      
+
       const payload = verify(token, cryptoSecret, {
         algorithms: ['HS256'],
       });

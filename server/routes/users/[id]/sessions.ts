@@ -14,6 +14,14 @@ export default defineEventHandler(async event => {
 
   const sessions = await prisma.sessions.findMany({
     where: { user: userId },
+    select: {
+      id: true,
+      user: true,
+      created_at: true,
+      accessed_at: true,
+      device: true,
+      user_agent: true,
+    }
   });
 
   return sessions.map(s => ({
